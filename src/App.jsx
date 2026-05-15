@@ -1,5 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Clock, MapPin, MessageCircle, Plus, Pencil, Trash2, X, Send, ChevronDown, ChevronUp, Sun, Moon, ArrowRightLeft, Image } from "lucide-react";
+import { db } from "./firebase";
+import {
+  collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDocs,
+  onSnapshot, writeBatch, serverTimestamp, query, orderBy, where,
+} from "firebase/firestore";
 
 const T={
   light:{canvas:"#FFFFFF",card:"#FFFFFF",hdr:"#222222",ink:"#222222",sec:"#717171",hint:"#9CA3AF",bdr:"#DDDDDD",bdrLt:"#EBEBEB",surf:"#F7F7F7",accent:"#FF385C",accentH:"#E00B41",sh:"rgba(0,0,0,0.02) 0px 0px 0px 1px,rgba(0,0,0,0.04) 0px 2px 6px,rgba(0,0,0,0.10) 0px 4px 8px",shH:"rgba(0,0,0,0.08) 0px 4px 12px",tabOn:{bg:"#222222",fg:"#FFFFFF"},tabOff:{bg:"#F7F7F7",fg:"#717171"},pillOn:{bg:"#222222",fg:"#FFFFFF",bd:"#222222"},pillOff:{bg:"#FFFFFF",fg:"#222222",bd:"#DDDDDD"},dayOn:{bg:"#222222",fg:"#FFFFFF"},dayOff:{bg:"#F2F2F2",fg:"#717171"},profBd:"#DDDDDD",profActBd:"currentColor",inputBg:"#FFFFFF",inputFocus:"#222222",addBdr:"#DDDDDD",addHov:"#222222"},
@@ -17,38 +22,48 @@ const CL={
 const START=new Date(2026,5,2);
 const fmtD=i=>{const d=new Date(START);d.setDate(d.getDate()+i);return d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});};
 const WEEKS=[{label:"Week 1",sub:"Jun 2 – 8",s:0,e:6},{label:"Week 2",sub:"Jun 9 – 15",s:7,e:13},{label:"Week 3",sub:"Jun 16 – 22",s:14,e:20},{label:"Week 4",sub:"Jun 23 – 29",s:21,e:27},{label:"Week 5",sub:"Jun 30 – Jul 5",s:28,e:33}];
-const COVER=null;
+
 const INIT=[
-  {id:1,day:0,name:"Intelligentsia Coffee",cat:"Coffee",desc:"Ease into Chicago with the city's pioneering third-wave roaster. Try the Black Cat espresso.",loc:"53 E Randolph St",time:"09:00",img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?ixlib=rb-4.0.3&w=600&h=250&fit=crop&q=80"},
-  {id:2,day:2,name:"Millennium Park & Cloud Gate",cat:"Activities",desc:"A relaxed walk to see the iconic Bean, Lurie Garden, and Crown Fountain. Free admission.",loc:"201 E Randolph St",time:"14:00",img:"https://images.unsplash.com/photo-1538332576228-eb5b4c4de6f5?ixlib=rb-4.0.3&w=600&h=250&fit=crop&q=80"},
-  {id:3,day:5,name:"Nadu",cat:"Restaurants",desc:"South Indian cuisine — dosas, uttapam, and thalis. Excellent vegetarian selection. ~$100 for three.",loc:"2423 N Clark St, Lincoln Park",time:"19:00",img:"https://images.unsplash.com/photo-1596797038530-2c107229654b?ixlib=rb-4.0.3&w=600&h=250&fit=crop&q=80"},
-  {id:4,day:7,name:"Metric Coffee",cat:"Coffee",desc:"Minimalist roastery in Fulton Market. Single-origin pourovers in an industrial-chic space.",loc:"2021 W Fulton St",time:"10:00"},
-  {id:5,day:8,name:"Planta",cat:"Restaurants",desc:"Upscale plant-based dining. Creative sushi, truffle pizza, and craft cocktails. ~$130 for three.",loc:"18 E Bellevue Pl, Gold Coast",time:"19:30"},
-  {id:6,day:10,name:"Chicago French Market",cat:"Markets",desc:"Indoor European-style market with artisan vendors, fresh produce, and prepared foods.",loc:"131 N Clinton St",time:"11:00"},
-  {id:7,day:12,name:"Revolution Brewing",cat:"Bars",desc:"Chicago's largest independent brewery. Great craft beers on tap — try the Anti-Hero IPA.",loc:"2323 N Milwaukee Ave",time:"17:00"},
-  {id:8,day:14,name:"Sawada Coffee",cat:"Coffee",desc:"Military Latte is legendary — matcha meets espresso. Cool West Loop vibes.",loc:"112 N Green St",time:"09:30"},
-  {id:9,day:15,name:"Art Institute of Chicago",cat:"Activities",desc:"World-class museum — Monet, Seurat, Hopper, and the Thorne Miniature Rooms. Plan 3+ hours.",loc:"111 S Michigan Ave",time:"10:00"},
-  {id:10,day:16,name:"Pilsen Food Crawl",cat:"Food Walks",desc:"Vibrant Pilsen — taquerias, bakeries, and amazing street art murals along 18th Street.",loc:"18th St & Blue Island Ave",time:"12:00"},
-  {id:11,day:17,name:"Strings Ramen",cat:"Restaurants",desc:"Rich tonkotsu and veggie ramen with great sides. Solid vegetarian broth. ~$80 for three.",loc:"2141 N Western Ave",time:"18:30"},
-  {id:12,day:19,name:"Half Acre Beer Company",cat:"Bars",desc:"Beloved neighborhood brewery. Daisy Cutter pale ale is the flagship. Great taproom vibes.",loc:"4257 N Lincoln Ave",time:"16:00"},
-  {id:13,day:21,name:"Gaslight Coffee Roasters",cat:"Coffee",desc:"Cozy Logan Square café with house-roasted beans and excellent pastries.",loc:"2385 N Milwaukee Ave",time:"09:00"},
-  {id:14,day:22,name:"Architecture Boat Tour",cat:"Activities",desc:"Cruise the Chicago River learning about iconic skyscrapers. A must-do experience.",loc:"112 E Wacker Dr",time:"11:00",img:"https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?ixlib=rb-4.0.3&w=600&h=250&fit=crop&q=80"},
-  {id:15,day:23,name:"Devon Ave Food Crawl",cat:"Food Walks",desc:"Chicago's Little India — chaat counters, sweet shops, and full-service vegetarian restaurants.",loc:"Devon Ave & Washtenaw",time:"12:00"},
-  {id:16,day:24,name:"Indienne",cat:"Restaurants",desc:"Fine-dining Indian with a modern twist. Tasting menus and à la carte. Splurge night — ~$200+ for three.",loc:"217 W Huron St, River North",time:"19:00",img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?ixlib=rb-4.0.3&w=600&h=250&fit=crop&q=80"},
-  {id:17,day:25,name:"Wicker Park Shops",cat:"Markets",desc:"Browse indie boutiques, vintage stores, and record shops along Milwaukee and Division.",loc:"Milwaukee Ave & North Ave",time:"13:00"},
-  {id:18,day:26,name:"Lincoln Park Zoo",cat:"Activities",desc:"Free zoo in the heart of Lincoln Park. Lions, gorillas, penguins, and a nature boardwalk.",loc:"2001 N Clark St",time:"10:00",img:"https://images.unsplash.com/photo-1474511320723-9a56873571b7?ixlib=rb-4.0.3&w=600&h=250&fit=crop&q=80"},
-  {id:19,day:27,name:"Mott St",cat:"Restaurants",desc:"Asian-inspired shareable plates. Great vegetarian options — coconut rice and mushroom dishes. ~$110 for three.",loc:"1401 N Ashland Ave",time:"19:00"},
-  {id:20,day:28,name:"Forbidden Root",cat:"Bars",desc:"Botanical brewery — beers brewed with roots, herbs, and flowers. Unique and delicious.",loc:"1746 W Chicago Ave",time:"17:00"},
-  {id:21,day:29,name:"Garfield Park Conservatory",cat:"Activities",desc:"One of the largest conservatories in the US — lush tropical rooms and desert landscapes. Free.",loc:"300 N Central Park Ave",time:"11:00"},
-  {id:22,day:30,name:"Chinatown Food Crawl",cat:"Food Walks",desc:"Dim sum, bubble tea, and bakeries in Chicago's lively Chinatown district.",loc:"Wentworth Ave & Cermak Rd",time:"12:00"},
-  {id:23,day:31,name:"Randolph Street Market",cat:"Markets",desc:"Indoor/outdoor market with vintage finds, antiques, and gourmet food stalls.",loc:"1340 W Washington Blvd",time:"10:00"},
-  {id:24,day:32,name:"Handlebar",cat:"Restaurants",desc:"Bike-themed bar & grill with an extensive vegetarian and vegan menu. Casual. ~$70 for three.",loc:"2311 W North Ave",time:"12:30"},
-  {id:25,day:32,name:"Chicago Riverwalk",cat:"Activities",desc:"Stroll, dine, and kayak along the scenic downtown river path. Beautiful at sunset.",loc:"Chicago Riverwalk, Wacker Dr",time:"17:00"},
-  {id:26,day:33,name:"Museum of Science & Industry",cat:"Activities",desc:"Real U-505 submarine, coal mine tour, and hands-on science exhibits. Epic finale day.",loc:"5700 S DuSable Lake Shore Dr",time:"10:00"},
+  {id:"1",day:0,name:"Intelligentsia Coffee",cat:"Coffee",desc:"Ease into Chicago with the city's pioneering third-wave roaster. Try the Black Cat espresso.",loc:"53 E Randolph St",time:"09:00",img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?ixlib=rb-4.0.3&w=600&h=250&fit=crop&q=80"},
+  {id:"2",day:2,name:"Millennium Park & Cloud Gate",cat:"Activities",desc:"A relaxed walk to see the iconic Bean, Lurie Garden, and Crown Fountain. Free admission.",loc:"201 E Randolph St",time:"14:00",img:"https://images.unsplash.com/photo-1538332576228-eb5b4c4de6f5?ixlib=rb-4.0.3&w=600&h=250&fit=crop&q=80"},
+  {id:"3",day:5,name:"Nadu",cat:"Restaurants",desc:"South Indian cuisine — dosas, uttapam, and thalis. Excellent vegetarian selection. ~$100 for three.",loc:"2423 N Clark St, Lincoln Park",time:"19:00",img:"https://images.unsplash.com/photo-1596797038530-2c107229654b?ixlib=rb-4.0.3&w=600&h=250&fit=crop&q=80"},
+  {id:"4",day:7,name:"Metric Coffee",cat:"Coffee",desc:"Minimalist roastery in Fulton Market. Single-origin pourovers in an industrial-chic space.",loc:"2021 W Fulton St",time:"10:00"},
+  {id:"5",day:8,name:"Planta",cat:"Restaurants",desc:"Upscale plant-based dining. Creative sushi, truffle pizza, and craft cocktails. ~$130 for three.",loc:"18 E Bellevue Pl, Gold Coast",time:"19:30"},
+  {id:"6",day:10,name:"Chicago French Market",cat:"Markets",desc:"Indoor European-style market with artisan vendors, fresh produce, and prepared foods.",loc:"131 N Clinton St",time:"11:00"},
+  {id:"7",day:12,name:"Revolution Brewing",cat:"Bars",desc:"Chicago's largest independent brewery. Great craft beers on tap — try the Anti-Hero IPA.",loc:"2323 N Milwaukee Ave",time:"17:00"},
+  {id:"8",day:14,name:"Sawada Coffee",cat:"Coffee",desc:"Military Latte is legendary — matcha meets espresso. Cool West Loop vibes.",loc:"112 N Green St",time:"09:30"},
+  {id:"9",day:15,name:"Art Institute of Chicago",cat:"Activities",desc:"World-class museum — Monet, Seurat, Hopper, and the Thorne Miniature Rooms. Plan 3+ hours.",loc:"111 S Michigan Ave",time:"10:00"},
+  {id:"10",day:16,name:"Pilsen Food Crawl",cat:"Food Walks",desc:"Vibrant Pilsen — taquerias, bakeries, and amazing street art murals along 18th Street.",loc:"18th St & Blue Island Ave",time:"12:00"},
+  {id:"11",day:17,name:"Strings Ramen",cat:"Restaurants",desc:"Rich tonkotsu and veggie ramen with great sides. Solid vegetarian broth. ~$80 for three.",loc:"2141 N Western Ave",time:"18:30"},
+  {id:"12",day:19,name:"Half Acre Beer Company",cat:"Bars",desc:"Beloved neighborhood brewery. Daisy Cutter pale ale is the flagship. Great taproom vibes.",loc:"4257 N Lincoln Ave",time:"16:00"},
+  {id:"13",day:21,name:"Gaslight Coffee Roasters",cat:"Coffee",desc:"Cozy Logan Square café with house-roasted beans and excellent pastries.",loc:"2385 N Milwaukee Ave",time:"09:00"},
+  {id:"14",day:22,name:"Architecture Boat Tour",cat:"Activities",desc:"Cruise the Chicago River learning about iconic skyscrapers. A must-do experience.",loc:"112 E Wacker Dr",time:"11:00",img:"https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?ixlib=rb-4.0.3&w=600&h=250&fit=crop&q=80"},
+  {id:"15",day:23,name:"Devon Ave Food Crawl",cat:"Food Walks",desc:"Chicago's Little India — chaat counters, sweet shops, and full-service vegetarian restaurants.",loc:"Devon Ave & Washtenaw",time:"12:00"},
+  {id:"16",day:24,name:"Indienne",cat:"Restaurants",desc:"Fine-dining Indian with a modern twist. Tasting menus and à la carte. Splurge night — ~$200+ for three.",loc:"217 W Huron St, River North",time:"19:00",img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?ixlib=rb-4.0.3&w=600&h=250&fit=crop&q=80"},
+  {id:"17",day:25,name:"Wicker Park Shops",cat:"Markets",desc:"Browse indie boutiques, vintage stores, and record shops along Milwaukee and Division.",loc:"Milwaukee Ave & North Ave",time:"13:00"},
+  {id:"18",day:26,name:"Lincoln Park Zoo",cat:"Activities",desc:"Free zoo in the heart of Lincoln Park. Lions, gorillas, penguins, and a nature boardwalk.",loc:"2001 N Clark St",time:"10:00",img:"https://images.unsplash.com/photo-1474511320723-9a56873571b7?ixlib=rb-4.0.3&w=600&h=250&fit=crop&q=80"},
+  {id:"19",day:27,name:"Mott St",cat:"Restaurants",desc:"Asian-inspired shareable plates. Great vegetarian options — coconut rice and mushroom dishes. ~$110 for three.",loc:"1401 N Ashland Ave",time:"19:00"},
+  {id:"20",day:28,name:"Forbidden Root",cat:"Bars",desc:"Botanical brewery — beers brewed with roots, herbs, and flowers. Unique and delicious.",loc:"1746 W Chicago Ave",time:"17:00"},
+  {id:"21",day:29,name:"Garfield Park Conservatory",cat:"Activities",desc:"One of the largest conservatories in the US — lush tropical rooms and desert landscapes. Free.",loc:"300 N Central Park Ave",time:"11:00"},
+  {id:"22",day:30,name:"Chinatown Food Crawl",cat:"Food Walks",desc:"Dim sum, bubble tea, and bakeries in Chicago's lively Chinatown district.",loc:"Wentworth Ave & Cermak Rd",time:"12:00"},
+  {id:"23",day:31,name:"Randolph Street Market",cat:"Markets",desc:"Indoor/outdoor market with vintage finds, antiques, and gourmet food stalls.",loc:"1340 W Washington Blvd",time:"10:00"},
+  {id:"24",day:32,name:"Handlebar",cat:"Restaurants",desc:"Bike-themed bar & grill with an extensive vegetarian and vegan menu. Casual. ~$70 for three.",loc:"2311 W North Ave",time:"12:30"},
+  {id:"25",day:32,name:"Chicago Riverwalk",cat:"Activities",desc:"Stroll, dine, and kayak along the scenic downtown river path. Beautiful at sunset.",loc:"Chicago Riverwalk, Wacker Dr",time:"17:00"},
+  {id:"26",day:33,name:"Museum of Science & Industry",cat:"Activities",desc:"Real U-505 submarine, coal mine tour, and hands-on science exhibits. Epic finale day.",loc:"5700 S DuSable Lake Shore Dr",time:"10:00"},
 ];
-const NC={1:"Hot chocolate for me though!",2:"Can we get ice cream near the Bean??",3:"DOSAS! Extra chutney please!",4:"Another coffee stop?? I'm getting a pastry",5:"Plant-based sushi sounds wild but I'm in",6:"Ooh can we get macarons here?",7:"Dad's spot. Root beer for me!",8:"Matcha AND espresso?? Genius",9:"I wanna see the tiny rooms!",10:"Street art photos are going to be amazing",11:"Ramen day is best day",12:"Cheese fries while y'all have beer?",13:"Pastry + hot cocoa combo incoming",14:"I call window seat on the boat!",15:"Devon Ave sweets are THE BEST. Jalebi!",16:"Fancy dinner!! Can I dress up?",17:"Can we check out vintage toy stores??",18:"FREE ZOO! Penguins first!",19:"Coconut rice sounds sooo good",20:"Flower beer sounds weird ngl",21:"The tropical room is like a jungle!",22:"Bubble tea AND dim sum?? Best day ever",23:"I hope they have vintage comics",24:"A bike restaurant?! So cool",25:"Can we do the kayaking?? PLEASE",26:"THE SUBMARINE. I need to see it."};
-const mkC=()=>{const c={};INIT.forEach(it=>{c[it.id]=[{id:`nc${it.id}`,user:"nishu",text:NC[it.id],ts:"earlier"}];});return c;};
-let nid=100,ncid=1000;
+const NC={"1":"Hot chocolate for me though!","2":"Can we get ice cream near the Bean??","3":"DOSAS! Extra chutney please!","4":"Another coffee stop?? I'm getting a pastry","5":"Plant-based sushi sounds wild but I'm in","6":"Ooh can we get macarons here?","7":"Dad's spot. Root beer for me!","8":"Matcha AND espresso?? Genius","9":"I wanna see the tiny rooms!","10":"Street art photos are going to be amazing","11":"Ramen day is best day","12":"Cheese fries while y'all have beer?","13":"Pastry + hot cocoa combo incoming","14":"I call window seat on the boat!","15":"Devon Ave sweets are THE BEST. Jalebi!","16":"Fancy dinner!! Can I dress up?","17":"Can we check out vintage toy stores??","18":"FREE ZOO! Penguins first!","19":"Coconut rice sounds sooo good","20":"Flower beer sounds weird ngl","21":"The tropical room is like a jungle!","22":"Bubble tea AND dim sum?? Best day ever","23":"I hope they have vintage comics","24":"A bike restaurant?! So cool","25":"Can we do the kayaking?? PLEASE","26":"THE SUBMARINE. I need to see it."};
+
+async function seedFirestore() {
+  const batch = writeBatch(db);
+  INIT.forEach(({ id, ...fields }) => {
+    batch.set(doc(db, "items", id), fields);
+  });
+  Object.entries(NC).forEach(([itemId, text]) => {
+    const ref = doc(collection(db, "comments"));
+    batch.set(ref, { itemId, user: "nishu", text, ts: "earlier", createdAt: serverTimestamp() });
+  });
+  await batch.commit();
+}
 
 function Av({u,sz=32}){
   return <div style={{width:sz,height:sz,borderRadius:"50%",background:u.bg,color:u.fg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:Math.round(sz*.38),fontWeight:600,flexShrink:0}}>{u.init}</div>;
@@ -68,7 +83,7 @@ function ItemForm({init,onSave,onCancel,t}){
         <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:t.sec,marginBottom:6}}>Name</div><input value={f.name} onChange={e=>up("name",e.target.value)} placeholder="e.g. Deep Dish Pizza Tour" style={is}/></div>
         <div style={{width:130}}><div style={{fontSize:12,fontWeight:600,color:t.sec,marginBottom:6}}>Time</div><input type="time" value={f.time} onChange={e=>up("time",e.target.value)} style={is}/></div>
       </div>
-      <div style={{marginBottom:16}}><div style={{fontSize:12,fontWeight:600,color:t.sec,marginBottom:6}}>Category</div><select value={f.cat} onChange={e=>up("cat",e.target.value)} style={{...is,background:t.inputBg}}>{CATS.map(c=> <option key={c} value={c}>{c}</option>)}</select></div>
+      <div style={{marginBottom:16}}><div style={{fontSize:12,fontWeight:600,color:t.sec,marginBottom:6}}>Category</div><select value={f.cat} onChange={e=>up("cat",e.target.value)} style={{...is,background:t.inputBg}}>{CATS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
       <div style={{marginBottom:16}}><div style={{fontSize:12,fontWeight:600,color:t.sec,marginBottom:6}}>Description</div><textarea value={f.desc} onChange={e=>up("desc",e.target.value)} rows={2} placeholder="Brief description..." style={{...is,resize:"vertical"}}/></div>
       <div style={{marginBottom:16}}><div style={{fontSize:12,fontWeight:600,color:t.sec,marginBottom:6}}>Location</div><input value={f.loc} onChange={e=>up("loc",e.target.value)} placeholder="Address or area" style={is}/></div>
       <div style={{marginBottom:20}}>
@@ -106,8 +121,9 @@ export default function App(){
   const [au,setAu]=useState("nishu");
   const [aw,setAw]=useState(0);
   const [fil,setFil]=useState([]);
-  const [items,setItems]=useState(INIT);
-  const [cmts,setCmts]=useState(mkC);
+  const [items,setItems]=useState([]);
+  const [cmts,setCmts]=useState({});
+  const [loading,setLoading]=useState(true);
   const [drafts,setDrafts]=useState({});
   const [openN,setOpenN]=useState({});
   const [adding,setAdding]=useState(null);
@@ -116,6 +132,35 @@ export default function App(){
   const [ecTxt,setEcTxt]=useState("");
   const [hov,setHov]=useState(null);
   const [movingId,setMovingId]=useState(null);
+  const seeding=useRef(false);
+
+  useEffect(()=>{
+    const unsubItems=onSnapshot(collection(db,"items"),async snap=>{
+      if(snap.empty&&!seeding.current){
+        seeding.current=true;
+        await seedFirestore();
+        return;
+      }
+      const its=snap.docs.map(d=>({id:d.id,...d.data()}));
+      setItems(its);
+      setLoading(false);
+    });
+
+    const unsubCmts=onSnapshot(
+      query(collection(db,"comments"),orderBy("createdAt")),
+      snap=>{
+        const grouped={};
+        snap.docs.forEach(d=>{
+          const {itemId,user,text,ts}=d.data();
+          if(!grouped[itemId]) grouped[itemId]=[];
+          grouped[itemId].push({id:d.id,user,text,ts});
+        });
+        setCmts(grouped);
+      }
+    );
+
+    return()=>{unsubItems();unsubCmts();};
+  },[]);
 
   const mode=dark?"dark":"light";
   const t=T[mode],users=UC[mode],cc=CL[mode];
@@ -123,13 +168,40 @@ export default function App(){
   const cur=UM[au],wk=WEEKS[aw];
 
   const toggleFil=c=>setFil(f=>f.includes(c)?f.filter(x=>x!==c):[...f,c]);
-  const addItem=(day,form)=>{const id=++nid;setItems(p=>[...p,{id,day,...form}]);setCmts(c=>({...c,[id]:[]}));setAdding(null);};
-  const updateItem=(id,form)=>{setItems(p=>p.map(it=>it.id===id?{...it,...form}:it));setEditing(null);};
-  const deleteItem=id=>{setItems(p=>p.filter(it=>it.id!==id));setCmts(c=>{const n={...c};delete n[id];return n;});};
-  const moveItem=(id,nd)=>{setItems(p=>p.map(it=>it.id===id?{...it,day:nd}:it));setMovingId(null);};
-  const addCmt=iid=>{const tx=(drafts[iid]||"").trim();if(!tx) return;setCmts(c=>({...c,[iid]:[...c[iid],{id:`c${++ncid}`,user:au,text:tx,ts:"just now"}]}));setDrafts(d=>({...d,[iid]:""}));};
-  const delCmt=(iid,cid)=>setCmts(c=>({...c,[iid]:c[iid].filter(x=>x.id!==cid)}));
-  const saveCmt=(iid,cid)=>{if(!ecTxt.trim()) return;setCmts(c=>({...c,[iid]:c[iid].map(x=>x.id===cid?{...x,text:ecTxt.trim(),ts:"edited"}:x)}));setEcId(null);};
+
+  const addItem=async(day,form)=>{
+    await addDoc(collection(db,"items"),{day,...form});
+    setAdding(null);
+  };
+  const updateItem=async(id,form)=>{
+    await updateDoc(doc(db,"items",id),form);
+    setEditing(null);
+  };
+  const deleteItem=async id=>{
+    await deleteDoc(doc(db,"items",id));
+    const snap=await getDocs(query(collection(db,"comments"),where("itemId","==",id)));
+    if(!snap.empty){
+      const batch=writeBatch(db);
+      snap.docs.forEach(d=>batch.delete(d.ref));
+      await batch.commit();
+    }
+  };
+  const moveItem=async(id,nd)=>{
+    await updateDoc(doc(db,"items",id),{day:nd});
+    setMovingId(null);
+  };
+  const addCmt=async iid=>{
+    const tx=(drafts[iid]||"").trim();
+    if(!tx) return;
+    await addDoc(collection(db,"comments"),{itemId:iid,user:au,text:tx,ts:"just now",createdAt:serverTimestamp()});
+    setDrafts(d=>({...d,[iid]:""}));
+  };
+  const delCmt=async(_iid,cid)=>{ await deleteDoc(doc(db,"comments",cid)); };
+  const saveCmt=async(_iid,cid)=>{
+    if(!ecTxt.trim()) return;
+    await updateDoc(doc(db,"comments",cid),{text:ecTxt.trim(),ts:"edited"});
+    setEcId(null);
+  };
 
   const days=useMemo(()=>{
     const r=[];
@@ -151,7 +223,7 @@ export default function App(){
     if(editing===it.id){
       return (
         <div key={it.id} style={{marginLeft:48,marginBottom:16}}>
-          <ItemForm t={t} init={{name:it.name,cat:it.cat,desc:it.desc,loc:it.loc,time:it.time||"",img:it.img||""}} onSave={f=>updateItem(it.id,f)} onCancel={()=>setEditing(null)}/>
+          <ItemForm t={t} init={{name:it.name,cat:it.cat,desc:it.desc,loc:it.loc||"",time:it.time||"",img:it.img||""}} onSave={f=>updateItem(it.id,f)} onCancel={()=>setEditing(null)}/>
         </div>
       );
     }
@@ -162,7 +234,7 @@ export default function App(){
           {it.img && (
             <div style={{width:"100%",height:120,background:`linear-gradient(135deg, ${c.bg}, ${c.bd}40, ${c.bg})`,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden"}}>
               <span style={{fontSize:48,opacity:0.9,filter:"grayscale(20%)",zIndex:1}}>{c.icon}</span>
-              {it.img !== "gradient" && (
+              {it.img!=="gradient" && (
                 <img src={it.img} alt={it.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",zIndex:2}} onError={e=>{e.target.style.display="none";}}/>
               )}
               <div style={{position:"absolute",bottom:0,left:0,right:0,height:40,background:`linear-gradient(transparent, ${t.card})`,zIndex:3}}/>
@@ -196,7 +268,7 @@ export default function App(){
           <div style={{borderTop:`1px solid ${t.bdrLt}`,padding:"0 20px"}}>
             <button onClick={()=>setOpenN(o=>({...o,[it.id]:!o[it.id]}))} style={{display:"flex",alignItems:"center",gap:6,width:"100%",padding:"12px 0",border:"none",background:"none",cursor:"pointer",fontSize:14,fontWeight:500,color:t.sec,fontFamily:"inherit"}}>
               <MessageCircle size={14}/> Notes ({notes.length})
-              <span style={{marginLeft:"auto"}}>{isOpen ? <ChevronUp size={15}/> : <ChevronDown size={15}/>}</span>
+              <span style={{marginLeft:"auto"}}>{isOpen?<ChevronUp size={15}/>:<ChevronDown size={15}/>}</span>
             </button>
           </div>
 
@@ -213,20 +285,20 @@ export default function App(){
                       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                         <span style={{fontSize:14,fontWeight:600,color:t.ink}}>{u.name}</span>
                         <span style={{fontSize:12,color:t.hint}}>{n.ts}</span>
-                        {own && !ised && (
+                        {own&&!ised&&(
                           <span style={{marginLeft:"auto",display:"flex",gap:8}}>
                             <button onClick={()=>{setEcId(n.id);setEcTxt(n.text);}} style={{border:"none",background:"none",cursor:"pointer",fontSize:12,color:t.sec,fontFamily:"inherit",padding:0,textDecoration:"underline"}}>edit</button>
                             <button onClick={()=>delCmt(it.id,n.id)} style={{border:"none",background:"none",cursor:"pointer",fontSize:12,color:t.accent,fontFamily:"inherit",padding:0,textDecoration:"underline"}}>delete</button>
                           </span>
                         )}
                       </div>
-                      {ised ? (
+                      {ised?(
                         <div style={{display:"flex",gap:8,marginTop:6}}>
                           <input value={ecTxt} onChange={e=>setEcTxt(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveCmt(it.id,n.id)} style={{flex:1,padding:"8px 14px",borderRadius:8,border:`1px solid ${t.bdr}`,fontSize:14,outline:"none",fontFamily:"inherit",color:t.ink,background:t.inputBg}}/>
                           <button onClick={()=>saveCmt(it.id,n.id)} style={{padding:"8px 14px",borderRadius:8,border:"none",background:t.accent,color:"white",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Save</button>
                           <button onClick={()=>setEcId(null)} style={{width:32,height:32,borderRadius:8,border:`1px solid ${t.bdr}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.sec}}><X size={14}/></button>
                         </div>
-                      ) : (
+                      ):(
                         <div style={{fontSize:14,color:dark?"#A0A0A0":t.ink,marginTop:3,lineHeight:1.43}}>{n.text}</div>
                       )}
                     </div>
@@ -245,27 +317,36 @@ export default function App(){
     );
   };
 
+  if(loading) return (
+    <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:dark?"#1A1A1A":"#FFFFFF",color:dark?"#F7F7F7":"#222222"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:32,marginBottom:12}}>✈️</div>
+        <div style={{fontSize:16,fontWeight:600}}>Loading your trip...</div>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif",maxWidth:720,margin:"0 auto",background:t.canvas,color:t.ink,WebkitFontSmoothing:"antialiased",minHeight:"100vh",transition:"background 0.3s,color 0.3s"}}>
       <div style={{background:t.hdr,borderRadius:"0 0 20px 20px",overflow:"hidden",position:"relative"}}>
         <img src="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?ixlib=rb-4.0.3&w=900&h=400&fit=crop&q=80" alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.35}} onError={e=>{e.target.style.display="none";}}/>
         <div style={{position:"relative",zIndex:1}}>
-        <div style={{padding:"32px 28px 0",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{fontSize:10,fontWeight:600,color:t.hint,letterSpacing:"0.32em",textTransform:"uppercase"}}>Trip planner</div>
-          <button onClick={()=>setDark(!dark)} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",cursor:"pointer",padding:0}} aria-label="Toggle dark mode">
-            <Sun size={14} color={dark?"#888":"#FBBF24"}/>
-            <div style={{width:36,height:20,borderRadius:10,background:dark?"#FF385C":"rgba(255,255,255,0.2)",position:"relative"}}>
-              <div style={{width:16,height:16,borderRadius:8,background:"white",position:"absolute",top:2,left:dark?18:2,transition:"left 0.2s"}}/>
-            </div>
-            <Moon size={14} color={dark?"#FF385C":"#888"}/>
-          </button>
-        </div>
-        <h1 style={{fontSize:28,fontWeight:700,color:"#FFFFFF",margin:0,padding:"12px 28px 0",letterSpacing:"-0.44px",lineHeight:1.2}}>Dad, Mom 'n' Me in Chicago</h1>
-        <div style={{padding:"10px 28px 24px",display:"flex",alignItems:"center",gap:16,fontSize:13,color:t.hint,flexWrap:"wrap"}}>
-          <span style={{display:"flex",alignItems:"center",gap:4}}><MapPin size={13}/> Chicago, IL</span>
-          <span style={{display:"flex",alignItems:"center",gap:4}}><Clock size={13}/> Jun 2 – Jul 5, 2026</span>
-          <span>{items.length} items</span>
-        </div>
+          <div style={{padding:"32px 28px 0",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{fontSize:10,fontWeight:600,color:t.hint,letterSpacing:"0.32em",textTransform:"uppercase"}}>Trip planner</div>
+            <button onClick={()=>setDark(!dark)} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",cursor:"pointer",padding:0}} aria-label="Toggle dark mode">
+              <Sun size={14} color={dark?"#888":"#FBBF24"}/>
+              <div style={{width:36,height:20,borderRadius:10,background:dark?"#FF385C":"rgba(255,255,255,0.2)",position:"relative"}}>
+                <div style={{width:16,height:16,borderRadius:8,background:"white",position:"absolute",top:2,left:dark?18:2,transition:"left 0.2s"}}/>
+              </div>
+              <Moon size={14} color={dark?"#FF385C":"#888"}/>
+            </button>
+          </div>
+          <h1 style={{fontSize:28,fontWeight:700,color:"#FFFFFF",margin:0,padding:"12px 28px 0",letterSpacing:"-0.44px",lineHeight:1.2}}>Dad, Mom 'n' Me in Chicago</h1>
+          <div style={{padding:"10px 28px 24px",display:"flex",alignItems:"center",gap:16,fontSize:13,color:t.hint,flexWrap:"wrap"}}>
+            <span style={{display:"flex",alignItems:"center",gap:4}}><MapPin size={13}/> Chicago, IL</span>
+            <span style={{display:"flex",alignItems:"center",gap:4}}><Clock size={13}/> Jun 2 – Jul 5, 2026</span>
+            <span>{items.length} items</span>
+          </div>
         </div>
       </div>
 
@@ -273,7 +354,7 @@ export default function App(){
         <div style={{marginBottom:24}}>
           <div style={{fontSize:10,fontWeight:600,color:t.hint,letterSpacing:"0.32em",textTransform:"uppercase",marginBottom:12}}>Travelers</div>
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-            {users.map(u => (
+            {users.map(u=>(
               <button key={u.id} onClick={()=>setAu(u.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 16px 8px 8px",borderRadius:999,cursor:"pointer",fontFamily:"inherit",border:au===u.id?`2px solid ${t.profActBd}`:`2px solid ${t.profBd}`,background:au===u.id?(dark?"rgba(255,56,92,0.08)":"white"):"transparent",boxShadow:au===u.id&&!dark?T.light.sh:"none",transition:"all 0.15s"}}>
                 <Av u={u} sz={32}/><div style={{textAlign:"left"}}><div style={{fontSize:14,fontWeight:600,color:t.ink}}>{u.name}</div><div style={{fontSize:12,color:t.sec}}>{u.role}</div></div>
               </button>
@@ -282,7 +363,7 @@ export default function App(){
         </div>
 
         <div style={{display:"flex",gap:4,marginBottom:20,overflowX:"auto"}}>
-          {WEEKS.map((w,i) => (
+          {WEEKS.map((w,i)=>(
             <button key={i} onClick={()=>setAw(i)} style={{flex:1,minWidth:80,padding:"12px 8px 10px",borderRadius:12,border:"none",cursor:"pointer",background:aw===i?t.tabOn.bg:t.tabOff.bg,color:aw===i?t.tabOn.fg:t.tabOff.fg,fontWeight:600,fontSize:14,fontFamily:"inherit",transition:"all 0.15s"}}>
               {w.label}<div style={{fontSize:12,fontWeight:400,marginTop:2,opacity:.7}}>{w.sub}</div>
             </button>
@@ -290,7 +371,7 @@ export default function App(){
         </div>
 
         <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:28}}>
-          {CATS.map(cat => {
+          {CATS.map(cat=>{
             const on=fil.includes(cat);
             const p=on?t.pillOn:t.pillOff;
             return (
@@ -299,12 +380,12 @@ export default function App(){
               </button>
             );
           })}
-          {fil.length>0 && (
+          {fil.length>0&&(
             <button onClick={()=>setFil([])} style={{padding:"8px 16px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",border:`1px solid ${t.bdr}`,background:"transparent",color:t.accent,fontFamily:"inherit"}}>Clear all</button>
           )}
         </div>
 
-        {days.map(({di,date,items:dItems}) => (
+        {days.map(({di,date,items:dItems})=>(
           <div key={di} style={{marginBottom:32}}>
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
               <div style={{width:36,height:36,borderRadius:12,background:dItems.length?t.dayOn.bg:t.dayOff.bg,color:dItems.length?t.dayOn.fg:t.dayOff.fg,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:14,flexShrink:0}}>{di+1}</div>
@@ -312,15 +393,15 @@ export default function App(){
                 <div style={{fontWeight:600,fontSize:16,color:dItems.length?t.ink:t.sec,letterSpacing:"-0.18px"}}>Day {di+1} · {date}</div>
                 <div style={{fontSize:12,color:t.hint,marginTop:1}}>{dItems.length?`${dItems.length} item${dItems.length>1?"s":""}`:"Free day — add something!"}</div>
               </div>
-              {adding!==di && (
+              {adding!==di&&(
                 <button onClick={()=>{setAdding(di);setEditing(null);setMovingId(null);}} style={{display:"flex",alignItems:"center",gap:5,padding:"8px 16px",borderRadius:8,border:`1px solid ${t.addBdr}`,background:"transparent",fontSize:14,fontWeight:500,cursor:"pointer",color:t.sec,fontFamily:"inherit"}}>
                   <Plus size={15}/> Add
                 </button>
               )}
             </div>
-            {adding===di && <div style={{marginLeft:48,marginBottom:16}}><ItemForm t={t} onSave={f=>addItem(di,f)} onCancel={()=>setAdding(null)}/></div>}
-            {dItems.map(it => renderCard(it))}
-            {!dItems.length && adding!==di && (
+            {adding===di&&<div style={{marginLeft:48,marginBottom:16}}><ItemForm t={t} onSave={f=>addItem(di,f)} onCancel={()=>setAdding(null)}/></div>}
+            {dItems.map(it=>renderCard(it))}
+            {!dItems.length&&adding!==di&&(
               <button onClick={()=>{setAdding(di);setEditing(null);}} style={{width:"calc(100% - 48px)",marginLeft:48,padding:16,border:`1px dashed ${t.addBdr}`,borderRadius:12,background:"transparent",fontSize:14,fontWeight:500,color:t.hint,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,fontFamily:"inherit"}}>
                 <Plus size={15}/> Add item to Day {di+1}
               </button>
