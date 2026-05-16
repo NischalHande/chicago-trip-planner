@@ -327,7 +327,7 @@ export default function App(){
   );
 
   return (
-    <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif",maxWidth:720,margin:"0 auto",background:t.canvas,color:t.ink,WebkitFontSmoothing:"antialiased",minHeight:"100vh",transition:"background 0.3s,color 0.3s"}}>
+    <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif",maxWidth:1200,width:"100%",margin:"0 auto",background:t.canvas,color:t.ink,WebkitFontSmoothing:"antialiased",minHeight:"100vh",transition:"background 0.3s,color 0.3s"}}>
       <div style={{background:t.hdr,borderRadius:"0 0 20px 20px",overflow:"hidden",position:"relative"}}>
         <img src="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?ixlib=rb-4.0.3&w=900&h=400&fit=crop&q=80" alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.35}} onError={e=>{e.target.style.display="none";}}/>
         <div style={{position:"relative",zIndex:1}}>
