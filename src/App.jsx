@@ -344,7 +344,7 @@ export default function App(){
   return (
     <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif",maxWidth:1200,width:"100%",margin:"0 auto",background:t.canvas,color:t.ink,WebkitFontSmoothing:"antialiased",minHeight:"100vh",transition:"background 0.3s,color 0.3s"}}>
       <div style={{background:t.hdr,borderRadius:"0 0 20px 20px",overflow:"hidden",position:"relative"}}>
-        <img src="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?ixlib=rb-4.0.3&w=900&h=400&fit=crop&q=80" alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.35}} onError={e=>{e.target.style.display="none";}}/>
+        <img src="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?ixlib=rb-4.0.3&w=900&h=400&fit=crop&q=80" alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.65}} onError={e=>{e.target.style.display="none";}}/>
         <div style={{position:"relative",zIndex:1}}>
           <div style={{padding:"32px 28px 0",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <div style={{fontSize:10,fontWeight:600,color:t.hint,letterSpacing:"0.32em",textTransform:"uppercase"}}>Trip planner</div>
@@ -357,7 +357,7 @@ export default function App(){
             </button>
           </div>
           <h1 style={{fontSize:28,fontWeight:700,color:"#FFFFFF",margin:0,padding:"12px 28px 0",letterSpacing:"-0.44px",lineHeight:1.2}}>Dad, Mom 'n' Me in Chicago</h1>
-          <div style={{padding:"10px 28px 24px",display:"flex",alignItems:"center",gap:16,fontSize:13,color:t.hint,flexWrap:"wrap"}}>
+          <div style={{padding:"10px 28px 24px",display:"flex",alignItems:"center",gap:16,fontSize:13,color:"#FFFFFF",textShadow:"0 1px 4px rgba(0,0,0,0.7)",flexWrap:"wrap"}}>
             <span style={{display:"flex",alignItems:"center",gap:4}}><MapPin size={13}/> Chicago, IL</span>
             <span style={{display:"flex",alignItems:"center",gap:4}}><Clock size={13}/> Jun 2 – Jul 5, 2026</span>
             <span>{items.length} items</span>
