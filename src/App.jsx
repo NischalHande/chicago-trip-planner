@@ -149,6 +149,10 @@ export default function App(){
   const seeding=useRef(false);
 
   useEffect(()=>{
+    document.body.style.background=dark?"#1A1A1A":"#FFFFFF";
+  },[dark]);
+
+  useEffect(()=>{
     const unsubItems=onSnapshot(collection(db,"items"),async snap=>{
       if(snap.empty&&!seeding.current){
         seeding.current=true;
