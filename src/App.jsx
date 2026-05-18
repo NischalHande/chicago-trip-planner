@@ -156,7 +156,11 @@ export default function App(){
     const unsubItems=onSnapshot(collection(db,"items"),async snap=>{
       if(snap.empty&&!seeding.current){
         seeding.current=true;
-        await seedFirestore();
+        setTimeout(async()=>{
+          const check=await getDocs(collection(db,"items"));
+          if(check.empty) await seedFirestore();
+          else seeding.current=false;
+        },1000);
         return;
       }
       const its=snap.docs.map(d=>({id:d.id,...d.data()}));
