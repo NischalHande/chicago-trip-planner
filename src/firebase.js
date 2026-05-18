@@ -12,4 +12,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
-window.__db = db; // TEMPORARY — remove after cleanup
+
+// TEMPORARY — remove after cleanup
+import("firebase/firestore").then(fs => { window.__fs = { db, ...fs }; });
