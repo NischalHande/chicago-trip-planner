@@ -73,7 +73,7 @@ async function seedFirestore() {
     batch.set(doc(db, "items", id), fields);
   });
   Object.entries(NC).forEach(([itemId, text]) => {
-    const ref = doc(collection(db, "comments"));
+    const ref = doc(db, "comments", `seed-${itemId}`);
     batch.set(ref, { itemId, user: "nishu", text, ts: "earlier", createdAt: serverTimestamp() });
   });
   await batch.commit();
