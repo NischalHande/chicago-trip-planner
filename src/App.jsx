@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { Clock, MapPin, MessageCircle, Plus, Pencil, Trash2, X, Send, ChevronDown, ChevronUp, Sun, Moon, ArrowRightLeft, Image } from "lucide-react";
 import { db } from "./firebase";
 import {
-  collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDocs,
+  collection, doc, addDoc, updateDoc, deleteDoc, getDocs,
   onSnapshot, writeBatch, serverTimestamp, query, orderBy, where,
 } from "firebase/firestore";
 
@@ -113,7 +113,7 @@ function ItemForm({init,onSave,onCancel,t}){
   );
 }
 
-function MoveMenu({itemId,itemDay,items,t,dark,onMove,onClose}){
+function MoveMenu({itemDay,items,t,dark,onMove}){
   return (
     <div style={{position:"absolute",top:36,right:0,zIndex:10,background:t.card,border:`1px solid ${t.bdr}`,borderRadius:12,boxShadow:dark?"0 8px 28px rgba(0,0,0,0.5)":"0 8px 28px rgba(0,0,0,0.15)",padding:8,width:220,maxHeight:260,overflowY:"auto"}}>
       <div style={{fontSize:11,fontWeight:600,color:t.hint,padding:"4px 8px 8px",letterSpacing:"0.04em",textTransform:"uppercase"}}>Move to</div>
@@ -219,8 +219,8 @@ export default function App(){
     await addDoc(collection(db,"comments"),{itemId:iid,user:au,text:tx,ts:"just now",createdAt:serverTimestamp()});
     setDrafts(d=>({...d,[iid]:""}));
   };
-  const delCmt=async(_iid,cid)=>{ await deleteDoc(doc(db,"comments",cid)); };
-  const saveCmt=async(_iid,cid)=>{
+  const delCmt=async(cid)=>{ await deleteDoc(doc(db,"comments",cid)); };
+  const saveCmt=async(cid)=>{
     if(!ecTxt.trim()) return;
     await updateDoc(doc(db,"comments",cid),{text:ecTxt.trim(),ts:"edited"});
     setEcId(null);
@@ -283,7 +283,7 @@ export default function App(){
                 <button onClick={()=>deleteItem(it.id)} style={{width:32,height:32,borderRadius:8,border:`1px solid ${t.bdr}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.sec}} title="Delete">
                   <Trash2 size={14}/>
                 </button>
-                {movingId===it.id && <MoveMenu itemId={it.id} itemDay={it.day} items={items} t={t} dark={dark} onMove={d=>moveItem(it.id,d)} onClose={()=>setMovingId(null)}/>}
+                {movingId===it.id && <MoveMenu itemDay={it.day} items={items} t={t} dark={dark} onMove={d=>moveItem(it.id,d)}/>}
               </div>
             </div>
           </div>
@@ -311,18 +311,18 @@ export default function App(){
                         {own&&!ised&&(
                           <span style={{marginLeft:"auto",display:"flex",gap:8}}>
                             <button onClick={()=>{setEcId(n.id);setEcTxt(n.text);}} style={{border:"none",background:"none",cursor:"pointer",fontSize:12,color:t.sec,fontFamily:"inherit",padding:0,textDecoration:"underline"}}>edit</button>
-                            <button onClick={()=>delCmt(it.id,n.id)} style={{border:"none",background:"none",cursor:"pointer",fontSize:12,color:t.accent,fontFamily:"inherit",padding:0,textDecoration:"underline"}}>delete</button>
+                            <button onClick={()=>delCmt(n.id)} style={{border:"none",background:"none",cursor:"pointer",fontSize:12,color:t.accent,fontFamily:"inherit",padding:0,textDecoration:"underline"}}>delete</button>
                           </span>
                         )}
                       </div>
                       {ised?(
                         <div style={{display:"flex",gap:8,marginTop:6}}>
-                          <input value={ecTxt} onChange={e=>setEcTxt(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveCmt(it.id,n.id)} style={{flex:1,padding:"8px 14px",borderRadius:8,border:`1px solid ${t.bdr}`,fontSize:14,outline:"none",fontFamily:"inherit",color:t.ink,background:t.inputBg}}/>
-                          <button onClick={()=>saveCmt(it.id,n.id)} style={{padding:"8px 14px",borderRadius:8,border:"none",background:t.accent,color:"white",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Save</button>
+                          <input value={ecTxt} onChange={e=>setEcTxt(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveCmt(n.id)} style={{flex:1,padding:"8px 14px",borderRadius:8,border:`1px solid ${t.bdr}`,fontSize:14,outline:"none",fontFamily:"inherit",color:t.ink,background:t.inputBg}}/>
+                          <button onClick={()=>saveCmt(n.id)} style={{padding:"8px 14px",borderRadius:8,border:"none",background:t.accent,color:"white",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Save</button>
                           <button onClick={()=>setEcId(null)} style={{width:32,height:32,borderRadius:8,border:`1px solid ${t.bdr}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.sec}}><X size={14}/></button>
                         </div>
                       ):(
-                        <div style={{fontSize:14,color:dark?"#A0A0A0":t.ink,marginTop:3,lineHeight:1.43}}>{n.text}</div>
+                        <div style={{fontSize:14,color:t.sec,marginTop:3,lineHeight:1.43}}>{n.text}</div>
                       )}
                     </div>
                   </div>
